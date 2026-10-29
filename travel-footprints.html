@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>行迹 · 贵州旅行路线</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <style>
     :root { --ink:#24322f; --muted:#77837d; --paper:#fbfaf5; --green:#42675d; --mint:#d9ebe0; --orange:#e58b55; --line:#d9dfd8; }
     * { box-sizing:border-box; }
@@ -130,12 +131,26 @@
   </main>
   <div class="toast" id="toast"></div>
   <script src="amap-config.local.js"></script>
+  <script>
+    // 高德官方要求：安全配置必须在 AMapLoader.load() 前设置。
+    window._AMapSecurityConfig = {};
+  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://webapi.amap.com/loader.js"></script>
   <script>
-    const amapConfig = window.AMAP_CONFIG || {};
-    const amapLoad = window.AMapLoader
-      ? AMapLoader.load({key:amapConfig.key || '',version:'2.0',securityJsCode:amapConfig.securityJsCode || '',plugins:['AMap.ToolBar']})
-      : Promise.reject(new Error('AMapLoader 未加载'));
+    const localAmapConfig = window.AMAP_CONFIG || {};
+    const amapConfigPromise = localAmapConfig.key
+      ? Promise.resolve(localAmapConfig)
+      : fetch('/api/amap?path=config').then(response=>response.ok?response.json():null).catch(()=>null);
+    const amapLoad = amapConfigPromise.then(amapConfig=>{
+      if(!window.AMapLoader || !amapConfig?.key) return null;
+      if(amapConfig.securityJsCode){
+        window._AMapSecurityConfig={securityJsCode:amapConfig.securityJsCode};
+      }else{
+        window._AMapSecurityConfig={serviceHost:location.origin+'/_AMapService'};
+      }
+      return AMapLoader.load({key:amapConfig.key,version:'2.0',plugins:['AMap.ToolBar']}).catch(()=>null);
+    });
     amapLoad.then(AMap=>{
     // 地图底图与交互使用高德地图 JS API；路线、贴纸和旅行档案仍由本页面管理。
     const places = [
@@ -153,8 +168,9 @@
     const editorSections=[document.querySelector('.hero'),document.querySelector('.map-wrap'),document.getElementById('panel')];
     const panel=document.getElementById('panel');
 
-    // 用一个轻量适配层保留原有 Leaflet 风格调用，让路线/贴纸代码平滑迁移到高德地图。
-    const L={
+    // 有高德配置时使用高德；公开部署没有配置时自动回退到免 Key 的 OSM，避免地图区域空白。
+    const usingAMap=!!AMap;
+    const L=usingAMap?{
       divIcon(options){return options;},
       map(id){
         const nativeMap=new AMap.Map(id,{zoom:8,center:[106.9,27.05],resizeEnable:true,zoomEnable:true});
@@ -169,7 +185,7 @@
       },
       marker([lat,lng],options={}){return new AMapMarkerAdapter(lat,lng,options);},
       polyline(points,options={}){return new AMapPolylineAdapter(points,options);}
-    };
+    }:window.L;
     class AMapMarkerAdapter {
       constructor(lat,lng,options){
         this.options=options; this.map=null;
@@ -191,7 +207,7 @@
     }
     function toAMapPath(points){return (points||[]).map(([lat,lng])=>[lng,lat]);}
     const map=L.map('map',{zoomControl:true}).setView([27.05,106.9],8);
-    const tileLayer={setOpacity(){}};
+    const tileLayer=usingAMap?{setOpacity(){}}:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
     let route=L.polyline([],{color:'#e58b55',weight:4,dashArray:'2 10',lineCap:'round'}).addTo(map);
     function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
     function tripTitle(){return activeTrip.name||'未命名旅行';}
@@ -207,7 +223,7 @@
     function renderIdentity(){const box=document.getElementById('viewIdentity');identityMarkers.forEach(m=>m.remove());identityMarkers=[];box.classList.remove('show');}
     function renderPlaceNames(){placeNameMarkers.forEach(m=>m.remove());placeNameMarkers=[];if(mode!=='view')return;chosen.forEach((id,index)=>{const p=places.find(x=>x.id===id);const region=p.region||p.type||'地区未识别';const country=p.country||'';const location=[region,country].filter(Boolean).join(' · ')||'国家未识别';const meta=showIdentityStickers?`<small>${location}</small>`:'';const marker=L.marker([p.lat-0.018-(index%2)*.006,p.lng-0.025],{icon:L.divIcon({className:'place-name-sticker',html:`<strong>${p.name}</strong>${meta}`,iconSize:[150,45],iconAnchor:[150,22]})}).addTo(map);placeNameMarkers.push(marker);});}
     function renderStickers(){stickerMarkers.forEach(m=>m.remove());stickerMarkers=[];const offsets={};stickers.forEach((s,index)=>{const p=places.find(x=>x.id===s.placeId);if(!p||mode!=='view')return;const slot=offsets[s.placeId]||0;offsets[s.placeId]=slot+1;const angle=slot*55*Math.PI/180;const lat=p.lat+Math.sin(angle)*.012;const lng=p.lng+Math.cos(angle)*.018;const marker=L.marker([lat,lng],{icon:L.divIcon({className:'map-sticker',html:s.emoji,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map).bindTooltip('点击摘下这张贴纸');marker.on('click',()=>{stickers.splice(index,1);render();showToast('贴纸已从路线图摘下');});stickerMarkers.push(marker);});}
-    function render(){if(screen==='trips'){showTrips();return;}document.getElementById('app').classList.toggle('view-mode',mode==='view');document.getElementById('topStatus').textContent=tripTitle(); renderMap(); document.getElementById('mapNote').textContent=mode==='select'?'点击地图标记，按顺序加入路线':'点击路线节点，再选择下方贴纸'; document.getElementById('hint').textContent=mode==='select'?'搜索或直接点击地图任意位置加入路线；再次点击标记可移除。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'; panel.innerHTML=mode==='select'?selectPanel():viewPanel(); bindPanel(); }
+    function render(){if(screen==='trips'){showTrips();return;}document.getElementById('app').classList.toggle('view-mode',mode==='view');document.getElementById('topStatus').textContent=tripTitle(); renderMap(); document.getElementById('mapNote').textContent=mode==='select'?'点击地图标记，按顺序加入路线':'点击路线节点，再选择下方贴纸'; document.getElementById('hint').textContent=usingAMap?(mode==='select'?'搜索或直接点击地图任意位置加入路线；再次点击标记可移除。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'):(mode==='select'?'当前为免 Key 的公开演示地图；搜索、路线和贴纸仍可使用。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'); panel.innerHTML=mode==='select'?selectPanel():viewPanel(); bindPanel(); }
     let pendingSticker=null, stickers=[];
     function selectStop(id){if(mode==='view'){selectedStopId=id;render();return;}togglePlace(id);}
     function togglePlace(id){if(mode!=='select')return; chosen=chosen.includes(id)?chosen.filter(x=>x!==id):[...chosen,id]; render();}
@@ -253,12 +269,6 @@
     document.querySelectorAll('.modebar button').forEach(b=>b.onclick=()=>{if(b.dataset.mode==='view'&&chosen.length<2){showToast('请先选择至少两个地点');return;}mode=b.dataset.mode;document.querySelectorAll('.modebar button').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));render();});
     document.getElementById('libraryButton').onclick=()=>screen==='trips'?showEditor():showTrips();
     render();
-    }).catch(error=>{
-      console.error('高德地图加载失败',error);
-      const note=document.getElementById('mapNote');
-      if(note)note.textContent='地图加载失败：请检查 Key、安全密钥和域名白名单';
-      const hint=document.getElementById('hint');
-      if(hint)hint.textContent='页面其他功能仍可保留；请确认高德 Key 类型为“Web端（JS API）”，并使用 localhost 打开。';
     });
   </script>
 </body>
