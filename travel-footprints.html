@@ -48,8 +48,16 @@
     .custom-emoji { display:flex; gap:7px; margin-top:9px; }
     .custom-emoji input { min-width:0; flex:1; border:1px solid var(--line); border-radius:10px; padding:9px 10px; outline:0; background:#fffdf8; font-size:12px; }
     .custom-emoji button { border:0; border-radius:10px; padding:0 12px; background:var(--green); color:#fff; font-size:12px; }
-    #app.view-mode #map { filter:sepia(.18) saturate(.78); }
-    #app.view-mode #map { background:#efe5d0; filter:none; }
+    /* 观赏路线是一张旅行足迹画，不显示道路、水路或任何地图底图。 */
+    #app.view-mode .map { background:#efe5d0 url('parchment-bg.png') center / cover; border-color:#d6c29e; }
+    #app.view-mode .search,
+    #app.view-mode .map-note { display:none; }
+    #app.view-mode #map { background:transparent; filter:none; }
+    /* 高德的底图、控件与版权文字隐藏；路线和自定义标记仍位于 overlays 图层。 */
+    #app.view-mode #map .amap-layers,
+    #app.view-mode #map .amap-controls,
+    #app.view-mode #map .amap-logo,
+    #app.view-mode #map .amap-copyright { display:none !important; }
     .view-identity { position:absolute; z-index:550; left:18px; right:18px; bottom:16px; display:none; padding:12px 14px; border:1px solid #bca47a66; border-radius:14px; background:#f7eddbdd; color:#6d5943; box-shadow:0 3px 12px #876f4a22; }
     .view-identity.show { display:block; }
     .view-identity strong { display:block; font-family:Georgia,serif; font-size:14px; font-weight:500; }
