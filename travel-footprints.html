@@ -52,7 +52,14 @@
     #app.view-mode .map { background:#efe5d0 url('parchment-bg.png') center / cover; border-color:#d6c29e; }
     #app.view-mode .search,
     #app.view-mode .map-note { display:none; }
-    #app.view-mode #map { background:transparent; filter:none; }
+    #app.view-mode #map { display:none; }
+    #routeArt { display:none; position:absolute; inset:0; }
+    #app.view-mode #routeArt { display:block; }
+    .art-stop { position:absolute; transform:translate(-50%,-50%); border:1px solid #d6c29e; border-radius:12px; background:#fff8e8; padding:8px; color:var(--ink); max-width:145px; }
+    .art-stop small { display:block; font-size:9px; color:#987b58; margin-top:3px; }
+    .art-stop.active { outline:3px solid #e58b55; }
+    .art-emojis { display:flex; flex-wrap:wrap; justify-content:center; }
+    .art-emojis button { border:0; background:transparent; font-size:23px; padding:2px; }
     /* 高德的底图、控件与版权文字隐藏；路线和自定义标记仍位于 overlays 图层。 */
     #app.view-mode #map .amap-layers,
     #app.view-mode #map .amap-controls,
@@ -236,7 +243,21 @@
     function newTrip(){activeTrip={id:'trip-'+Date.now(),name:'未命名旅行',startDate:today,endDate:today,lastModified:new Date().toISOString(),chosen:[],stickers:[]};chosen=[];stickers=[];selectedStopId=null;mode='select';showEditor();showToast('已新建旅行');}
     function pin(p,number,selected){ return L.divIcon({className:'',html:`<div class="travel-pin ${selected?'selected':''}"><span>${number||p.icon}</span></div>`,iconSize:[29,29],iconAnchor:[14,28]}); }
     function renderMap(){ markers.forEach(m=>m.remove()); markers.clear(); places.forEach(p=>{if(mode==='view'&&!chosen.includes(p.id))return; const n=chosen.indexOf(p.id); const m=L.marker([p.lat,p.lng],{icon:pin(p,n>=0?n+1:null,p.id===selectedStopId)}).addTo(map).bindTooltip(p.name); m.on('click',()=>selectStop(p.id)); markers.set(p.id,m); }); route.setLatLngs(chosen.map(id=>{const p=places.find(x=>x.id===id);return [p.lat,p.lng];})); tileLayer.setOpacity(mode==='view'?0:1); document.getElementById('map').classList.toggle('view-map',mode==='view'); if(chosen.length>1) map.fitBounds(route.getBounds(),{padding:mode==='view'?[70,70]:[35,35],maxZoom:mode==='view'?13:10}); renderStickers(); renderIdentity(); renderPlaceNames(); }
-    function renderIdentity(){const box=document.getElementById('viewIdentity');identityMarkers.forEach(m=>m.remove());identityMarkers=[];box.classList.remove('show');}
+    function renderIdentity(){const box=document.getElementById('viewIdentity');identityMarkers.forEach(m=>m.remove());identityMarkers=[];box.classList.remove('show');renderRouteArt();}
+    function renderRouteArt(){
+      let art=document.getElementById('routeArt');
+      if(!art){art=document.createElement('div');art.id='routeArt';document.getElementById('map').parentElement.appendChild(art);}
+      if(mode!=='view'){art.replaceChildren();return;}
+      const stops=chosen.map(id=>places.find(p=>p.id===id)).filter(Boolean);
+      const points=stops.map((p,i)=>({x:stops.length===1?50:25+(i%2)*50,y:15+i*70/Math.max(1,stops.length-1)}));
+      art.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;width:100%;height:100%"><polyline points="'+points.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="#e58b55" stroke-width=".7" stroke-dasharray="1.4 2" /></svg>';
+      stops.forEach((p,i)=>{
+        const card=document.createElement('div');card.className='art-stop'+(selectedStopId===p.id?' active':'');card.style.left=points[i].x+'%';card.style.top=points[i].y+'%';
+        const label=document.createElement('button');label.style.cssText='border:0;background:transparent;color:inherit;padding:0';label.textContent=(i+1)+'. '+p.name;label.onclick=()=>selectStop(p.id);card.appendChild(label);
+        if(showIdentityStickers){const meta=document.createElement('small');meta.textContent=[p.region,p.country].filter(Boolean).join(' · ');card.appendChild(meta);}
+        const emojis=document.createElement('div');emojis.className='art-emojis';stickers.forEach((s,index)=>{if(s.placeId!==p.id)return;const b=document.createElement('button');b.textContent=s.emoji;b.onclick=()=>{stickers.splice(index,1);render();};emojis.appendChild(b);});card.appendChild(emojis);art.appendChild(card);
+      });
+    }
     function renderPlaceNames(){placeNameMarkers.forEach(m=>m.remove());placeNameMarkers=[];if(mode!=='view')return;chosen.forEach((id,index)=>{const p=places.find(x=>x.id===id);const region=p.region||p.type||'地区未识别';const country=p.country||'';const location=[region,country].filter(Boolean).join(' · ')||'国家未识别';const meta=showIdentityStickers?`<small>${location}</small>`:'';const marker=L.marker([p.lat-0.018-(index%2)*.006,p.lng-0.025],{icon:L.divIcon({className:'place-name-sticker',html:`<strong>${p.name}</strong>${meta}`,iconSize:[150,45],iconAnchor:[150,22]})}).addTo(map);placeNameMarkers.push(marker);});}
     function renderStickers(){stickerMarkers.forEach(m=>m.remove());stickerMarkers=[];const offsets={};stickers.forEach((s,index)=>{const p=places.find(x=>x.id===s.placeId);if(!p||mode!=='view')return;const slot=offsets[s.placeId]||0;offsets[s.placeId]=slot+1;const angle=slot*55*Math.PI/180;const lat=p.lat+Math.sin(angle)*.012;const lng=p.lng+Math.cos(angle)*.018;const marker=L.marker([lat,lng],{icon:L.divIcon({className:'map-sticker',html:s.emoji,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map).bindTooltip('点击摘下这张贴纸');marker.on('click',()=>{stickers.splice(index,1);render();showToast('贴纸已从路线图摘下');});stickerMarkers.push(marker);});}
     function render(){if(screen==='trips'){showTrips();return;}document.getElementById('app').classList.toggle('view-mode',mode==='view');document.getElementById('topStatus').textContent=tripTitle(); renderMap(); document.getElementById('mapNote').textContent=mode==='select'?'点击地图标记，按顺序加入路线':'点击路线节点，再选择下方贴纸'; document.getElementById('hint').textContent=usingAMap?(mode==='select'?'搜索或直接点击地图任意位置加入路线；再次点击标记可移除。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'):(mode==='select'?'当前为免 Key 的公开演示地图；搜索、路线和贴纸仍可使用。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'); panel.innerHTML=mode==='select'?selectPanel():viewPanel(); bindPanel(); }
