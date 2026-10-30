@@ -179,7 +179,15 @@
           nativeMap,
           setView([lat,lng],zoom){nativeMap.setZoomAndCenter(zoom,[lng,lat]);return this;},
           getZoom(){return nativeMap.getZoom();},
-          fitBounds(bounds,options={}){if(!bounds)return;nativeMap.setBounds(bounds, true, options.padding||[35,35]);},
+          fitBounds(bounds,options={}){
+            if(!bounds)return;
+            // 高德 setBounds 的 avoid 参数必须是 [上, 右, 下, 左] 四个值。
+            // 原来传入两个值会让高德计算出 NaN，第三个地点开始便会中断整次渲染。
+            const padding=options.padding||[35,35];
+            const horizontal=Number(padding[0])||35;
+            const vertical=Number(padding[1])||horizontal;
+            nativeMap.setBounds(bounds,true,[vertical,horizontal,vertical,horizontal]);
+          },
           on(event,handler){nativeMap.on(event,e=>handler({latlng:{lat:e.lnglat.getLat(),lng:e.lnglat.getLng()},originalEvent:e}));return this;}
         };
       },
