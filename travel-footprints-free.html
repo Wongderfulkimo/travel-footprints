@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>行迹 · 贵州旅行路线</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    :root { --ink:#24322f; --muted:#77837d; --paper:#fbfaf5; --green:#42675d; --mint:#d9ebe0; --orange:#e58b55; --line:#d9dfd8; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#e7eee9; color:var(--ink); font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", sans-serif; }
+    button { font:inherit; cursor:pointer; }
+    .phone { width:min(100%, 440px); min-height:100vh; margin:auto; background:var(--paper); overflow:hidden; }
+    .phone.view-mode { background:#efe5d0 url('parchment-bg.png') center top / cover fixed; }
+    .topbar { padding:20px 22px 12px; display:flex; align-items:center; justify-content:space-between; }
+    .topbar-right { display:flex; align-items:center; gap:9px; }
+    .library-button { border:1px solid var(--line); border-radius:10px; padding:7px 9px; background:#fffdf7; color:var(--green); font-size:11px; }
+    .brand { font-family: Georgia, serif; font-size:25px; letter-spacing:.04em; }
+    .topbar small { color:var(--muted); font-size:12px; }
+    .hero { padding:8px 22px 18px; }
+    .eyebrow { color:var(--orange); text-transform:uppercase; letter-spacing:.18em; font-size:10px; font-weight:700; }
+    h1 { margin:6px 0 3px; font-family: Georgia, serif; font-size:34px; font-weight:500; }
+    .subtitle { color:var(--muted); font-size:13px; }
+    .modebar { display:flex; gap:7px; margin-top:17px; padding:4px; background:#edf2ed; border-radius:14px; }
+    .modebar button { flex:1; border:0; background:transparent; color:var(--muted); padding:10px 6px; border-radius:11px; font-size:13px; }
+    .modebar button.active { background:white; color:var(--green); box-shadow:0 2px 9px #ccd8cf; font-weight:700; }
+    .map-wrap { padding:0 14px; }
+    .map { position:relative; height:390px; border-radius:25px; overflow:hidden; background:#d9e7df; border:1px solid #d0ded5; }
+    #map { width:100%; height:100%; z-index:1; }
+    .map-note { position:absolute; z-index:500; top:17px; left:52px; padding:7px 10px; border-radius:9px; color:#49655c; background:rgba(255,253,245,.9); font-size:11px; box-shadow:0 2px 8px #78908055; }
+    .search { position:absolute; z-index:600; top:16px; right:16px; left:16px; display:flex; gap:7px; }
+    .search input { width:100%; border:0; outline:0; padding:11px 13px; border-radius:12px; background:#fffdf5ee; box-shadow:0 2px 9px #78908055; color:var(--ink); font-size:12px; }
+    .search-results { position:absolute; z-index:700; top:52px; left:0; right:0; display:none; max-height:155px; overflow:auto; border-radius:12px; background:#fffdf5; box-shadow:0 6px 20px #526b5b45; }
+    .search-results.show { display:block; }
+    .result { width:100%; border:0; border-bottom:1px solid #edf0eb; background:transparent; padding:10px 13px; text-align:left; color:var(--ink); font-size:12px; }
+    .result small { display:block; color:var(--muted); margin-top:3px; }
+    .result-hint { padding:12px 13px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .amap-toolbar { top:64px !important; right:10px !important; }
+    .travel-pin { display:grid; place-items:center; width:29px; height:29px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); background:var(--orange); border:3px solid white; box-shadow:0 2px 7px #38524777; color:white; font-size:13px; font-weight:700; }
+    .travel-pin span { transform:rotate(45deg); }
+    .travel-pin.selected { background:var(--green); box-shadow:0 0 0 4px #f8dfcf,0 2px 7px #38524777; }
+    .map-sticker { background:transparent; border:0; font-size:27px; line-height:34px; text-align:center; cursor:pointer; filter:drop-shadow(0 2px 2px #38524744); }
+    .identity-sticker { width:max-content; min-width:108px; padding:7px 10px; border:1px solid #c8ad7e; border-radius:10px 10px 10px 2px; background:#f8edd9; color:#6b563d; box-shadow:0 3px 9px #876f4a33; font-family:Georgia,"PingFang SC",serif; font-size:11px; line-height:1.25; text-align:center; white-space:nowrap; }
+    .identity-sticker small { display:block; margin-top:2px; color:#987b58; font-family:ui-rounded,"PingFang SC",sans-serif; font-size:10px; }
+    .place-name-sticker { width:max-content; min-width:100px; padding:6px 9px; border:1px solid #d6c29e; border-radius:9px; background:#fff8e8; color:#4f5d53; box-shadow:0 3px 9px #876f4a25; font-family:"PingFang SC",sans-serif; font-size:11px; font-weight:700; white-space:nowrap; }
+    .place-name-sticker strong { display:block; font-size:11px; }
+    .place-name-sticker small { display:block; margin-top:3px; color:#987b58; font-size:9px; font-weight:500; }
+    .custom-emoji { display:flex; gap:7px; margin-top:9px; }
+    .custom-emoji input { min-width:0; flex:1; border:1px solid var(--line); border-radius:10px; padding:9px 10px; outline:0; background:#fffdf8; font-size:12px; }
+    .custom-emoji button { border:0; border-radius:10px; padding:0 12px; background:var(--green); color:#fff; font-size:12px; }
+    /* 观赏路线是一张旅行足迹画，不显示道路、水路或任何地图底图。 */
+    #app.view-mode .map { background:#efe5d0 url('parchment-bg.png') center / cover; border-color:#d6c29e; }
+    #app.view-mode .search,
+    #app.view-mode .map-note { display:none; }
+    #app.view-mode #map { display:none; }
+    #routeArt { display:none; position:absolute; inset:0; }
+    #app.view-mode #routeArt { display:block; }
+    .art-stop { position:absolute; transform:translate(-50%,-50%); border:1px solid #d6c29e; border-radius:12px; background:#fff8e8; padding:8px; color:var(--ink); max-width:145px; }
+    .art-stop small { display:block; font-size:9px; color:#987b58; margin-top:3px; }
+    .art-stop.active { outline:3px solid #e58b55; }
+    .art-emojis { display:flex; flex-wrap:wrap; justify-content:center; }
+    .art-emojis button { border:0; background:transparent; font-size:23px; padding:2px; }
+    /* 高德的底图、控件与版权文字隐藏；路线和自定义标记仍位于 overlays 图层。 */
+    #app.view-mode #map .amap-layers,
+    #app.view-mode #map .amap-controls,
+    #app.view-mode #map .amap-logo,
+    #app.view-mode #map .amap-copyright { display:none !important; }
+    .view-identity { position:absolute; z-index:550; left:18px; right:18px; bottom:16px; display:none; padding:12px 14px; border:1px solid #bca47a66; border-radius:14px; background:#f7eddbdd; color:#6d5943; box-shadow:0 3px 12px #876f4a22; }
+    .view-identity.show { display:block; }
+    .view-identity strong { display:block; font-family:Georgia,serif; font-size:14px; font-weight:500; }
+    .view-identity small { display:block; margin-top:4px; color:#987f60; font-size:11px; }
+    .identity-actions { display:flex; justify-content:flex-end; margin-top:8px; }
+    .identity-actions button { border:0; background:transparent; color:#987f60; font-size:11px; padding:2px 0; }
+    .hint { margin:13px 7px 0; padding:11px 14px; background:#f1f5ef; border-radius:13px; color:#60756c; font-size:12px; line-height:1.5; }
+    .panel { padding:18px 22px 28px; }
+    .section-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .section-title { font-weight:700; font-size:15px; }
+    .counter { color:var(--orange); font-size:12px; }
+    .stops { display:flex; gap:8px; overflow:auto; padding:2px 0 5px; scrollbar-width:none; }
+    .stops::-webkit-scrollbar { display:none; }
+    .stop-card { flex:0 0 auto; min-width:100px; border:1px solid var(--line); background:#fff; border-radius:14px; padding:11px 12px; text-align:left; color:var(--ink); }
+    .stop-card.active { border-color:var(--orange); box-shadow:0 0 0 2px #f8dfcf; }
+    .stop-card .num { color:var(--orange); font-size:11px; }
+    .stop-card strong { display:block; margin-top:5px; font-size:13px; }
+    .stop-card small { color:var(--muted); font-size:10px; }
+    .primary { width:100%; border:0; margin-top:17px; padding:14px; border-radius:15px; background:var(--green); color:white; font-weight:700; box-shadow:0 5px 12px #c7d5cc; }
+    .primary:disabled { background:#bbc9c1; box-shadow:none; cursor:not-allowed; }
+    .secondary { width:100%; border:1px solid var(--line); margin-top:9px; padding:12px; border-radius:14px; background:transparent; color:var(--green); }
+    .observe-copy { margin:3px 0 14px; color:var(--muted); font-size:12px; line-height:1.6; }
+    .trip-fields { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+    .trip-fields label { color:var(--muted); font-size:10px; }
+    .trip-fields input { width:100%; margin-top:5px; border:1px solid var(--line); border-radius:9px; padding:8px; background:#fffdf8; color:var(--ink); font:inherit; font-size:12px; }
+    .trip-fields .full { grid-column:1/-1; }
+    .archive { display:none; padding:8px 22px 32px; }
+    .archive.show { display:block; }
+    .archive-head { display:flex; justify-content:space-between; align-items:flex-end; margin:8px 0 17px; }
+    .archive-head h2 { margin:0; font-family:Georgia,serif; font-size:29px; font-weight:500; }
+    .archive-head p { margin:5px 0 0; color:var(--muted); font-size:12px; }
+    .new-trip { border:0; border-radius:12px; padding:10px 12px; background:var(--green); color:white; font-size:12px; font-weight:700; }
+    .archive-section { margin:16px 0 9px; color:var(--muted); font-size:11px; letter-spacing:.08em; }
+    .trip-list { display:grid; gap:10px; }
+    .trip-card { position:relative; display:grid; grid-template-columns:92px 1fr; gap:12px; padding:10px; border:1px solid var(--line); border-radius:16px; background:#fffdf8; box-shadow:0 3px 10px #8a9b8a18; }
+    .trip-thumb { position:relative; height:92px; overflow:hidden; border-radius:11px; background:#dce9df; }
+    .trip-thumb::before { content:""; position:absolute; inset:22px 8px; border-top:3px dashed var(--orange); transform:rotate(-18deg); }
+    .trip-thumb::after { content:"✦  ✦  ✦"; position:absolute; left:9px; bottom:9px; color:#fffaf0; font-size:15px; letter-spacing:6px; }
+    .trip-info { min-width:0; padding:3px 0; }
+    .trip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:Georgia,serif; font-size:17px; }
+    .trip-meta { margin-top:8px; color:#64736b; font-size:11px; line-height:1.65; }
+    .trip-updated { margin-top:4px; color:var(--muted); font-size:10px; }
+    .trip-actions { display:flex; gap:6px; margin-top:8px; }
+    .trip-actions button { border:0; border-radius:8px; padding:6px 9px; font-size:10px; }
+    .trip-edit { background:#e2eee5; color:var(--green); }
+    .trip-delete { background:#f8e8df; color:#a66549; }
+    .empty-trips { padding:30px 12px; border:1px dashed #c6d2c9; border-radius:15px; color:var(--muted); text-align:center; font-size:12px; line-height:1.6; }
+    .summary { display:flex; justify-content:space-between; align-items:center; padding:14px; background:#f4eee3; border-radius:16px; }
+    .summary strong { font-family:Georgia,serif; font-size:22px; font-weight:500; }
+    .summary span { color:#8d735e; font-size:11px; }
+    .sticker-title { margin:18px 0 9px; font-size:13px; font-weight:700; }
+    .sticker-tabs { display:flex; gap:6px; margin-bottom:8px; }
+    .sticker-tabs button { border:0; background:#edf2ed; color:var(--muted); border-radius:9px; padding:7px 11px; font-size:11px; }
+    .sticker-tabs button.active { background:#dbeae0; color:var(--green); font-weight:700; }
+    .sticker-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+    .sticker { border:1px solid transparent; border-radius:10px; background:#fff; padding:7px 2px; font-size:22px; line-height:1; }
+    .sticker:hover,.sticker.active { border-color:var(--orange); background:#fff5ed; }
+    .sticker-tip { margin-top:8px; color:var(--muted); font-size:11px; }
+    .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); padding:10px 14px; background:#253b34; color:white; border-radius:999px; font-size:12px; opacity:0; pointer-events:none; transition:.25s; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    @media (min-width:600px) { .phone { margin:22px auto; min-height:calc(100vh - 44px); border-radius:30px; box-shadow:0 18px 50px #b9c9bf; } }
+  </style>
+</head>
+<body>
+  <main class="phone" id="app">
+    <header class="topbar"><div class="brand">行迹</div><div class="topbar-right"><small id="topStatus">我的旅行地图 · 01</small><button class="library-button" id="libraryButton">我的旅行</button></div></header>
+    <section class="hero">
+      <div class="eyebrow">TRAVEL FOOTPRINT</div>
+      <h1>把世界走成一条线</h1>
+      <div class="subtitle">全球 · 自定义旅行路线 · 选择你真正想留下的地方</div>
+      <nav class="modebar"><button class="active" data-mode="select">选择路线</button><button data-mode="view">观赏路线</button></nav>
+    </section>
+    <section class="map-wrap"><div class="map">
+      <div class="search"><input id="searchInput" placeholder="搜索全球地点：城市、景点、餐厅（海外可用英文）" autocomplete="off" /><div class="search-results" id="searchResults"></div></div>
+      <div class="map-note" id="mapNote">点击地图标记，按顺序加入路线</div><div id="map"></div><div class="view-identity" id="viewIdentity"></div>
+    </div><div class="hint" id="hint">搜索或直接点击地图任意位置加入路线；再次点击标记可移除。</div></section>
+    <section class="panel" id="panel"></section>
+    <section class="archive" id="tripLibrary"></section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const amapLoad = Promise.resolve(null);
+    amapLoad.then(AMap=>{
+    // 地图底图与交互使用高德地图 JS API；路线、贴纸和旅行档案仍由本页面管理。
+    const places = [
+      {id:'airport',name:'贵阳龙洞堡国际机场',type:'贵州 · 出发',region:'贵州省',country:'中国',icon:'✈',lat:26.54,lng:106.80}, {id:'qingyun',name:'青云市集',type:'贵阳 · 美食',region:'贵州省',country:'中国',icon:'⌂',lat:26.57,lng:106.71},
+      {id:'huangguoshu',name:'黄果树瀑布',type:'安顺 · 景点',region:'贵州省',country:'中国',icon:'≋',lat:25.99,lng:105.67}, {id:'xijiang',name:'西江千户苗寨',type:'黔东南 · 景点',region:'贵州省',country:'中国',icon:'⌁',lat:26.49,lng:108.18},
+      {id:'zhenyuan',name:'镇远古城',type:'黔东南 · 古城',region:'贵州省',country:'中国',icon:'▱',lat:27.05,lng:108.42}, {id:'fanjing',name:'梵净山',type:'铜仁 · 景点',region:'贵州省',country:'中国',icon:'♢',lat:27.91,lng:108.72},
+      {id:'paris',name:'巴黎铁塔',type:'法国 · 地标',region:'法兰西岛大区',country:'法国',icon:'✦',lat:48.8584,lng:2.2945}, {id:'kyoto',name:'京都·伏见稻荷大社',type:'日本 · 景点',region:'京都府',country:'日本',icon:'⛩',lat:34.9671,lng:135.7727},
+      {id:'nyc',name:'纽约中央公园',type:'美国 · 城市',region:'纽约州',country:'美国',icon:'★',lat:40.7812,lng:-73.9665}, {id:'bali',name:'巴厘岛乌布',type:'印度尼西亚 · 旅行',region:'巴厘省',country:'印度尼西亚',icon:'◌',lat:-8.5069,lng:115.2625}
+    ];
+    const TRIP_STORAGE_KEY='xingji-trips-v1';
+    const today=new Date().toISOString().slice(0,10);
+    let mode='select', screen='editor', chosen=[], markers=new Map(), stickerMarkers=[], identityMarkers=[], placeNameMarkers=[], selectedStopId=null, showIdentityStickers=true;
+    let trips=[]; try{trips=JSON.parse(localStorage.getItem(TRIP_STORAGE_KEY)||'[]');}catch(_){trips=[];}
+    let activeTrip={id:'draft-'+Date.now(),name:'未命名旅行',startDate:today,endDate:today,lastModified:new Date().toISOString(),chosen:[],stickers:[]};
+    const editorSections=[document.querySelector('.hero'),document.querySelector('.map-wrap'),document.getElementById('panel')];
+    const panel=document.getElementById('panel');
+
+    // 有高德配置时使用高德；公开部署没有配置时自动回退到免 Key 的 OSM，避免地图区域空白。
+    const usingAMap=!!AMap;
+    const L=usingAMap?{
+      divIcon(options){return options;},
+      map(id){
+        const nativeMap=new AMap.Map(id,{zoom:8,center:[106.9,27.05],resizeEnable:true,zoomEnable:true});
+        AMap.plugin(['AMap.ToolBar'],()=>nativeMap.addControl(new AMap.ToolBar({position:'RT'})));
+        return {
+          nativeMap,
+          setView([lat,lng],zoom){nativeMap.setZoomAndCenter(zoom,[lng,lat]);return this;},
+          getZoom(){return nativeMap.getZoom();},
+          fitBounds(bounds,options={}){
+            if(!bounds)return;
+            // 高德 setBounds 的 avoid 参数必须是 [上, 右, 下, 左] 四个值。
+            // 原来传入两个值会让高德计算出 NaN，第三个地点开始便会中断整次渲染。
+            const padding=options.padding||[35,35];
+            const horizontal=Number(padding[0])||35;
+            const vertical=Number(padding[1])||horizontal;
+            nativeMap.setBounds(bounds,true,[vertical,horizontal,vertical,horizontal]);
+          },
+          on(event,handler){nativeMap.on(event,e=>handler({latlng:{lat:e.lnglat.getLat(),lng:e.lnglat.getLng()},originalEvent:e}));return this;}
+        };
+      },
+      marker([lat,lng],options={}){return new AMapMarkerAdapter(lat,lng,options);},
+      polyline(points,options={}){return new AMapPolylineAdapter(points,options);}
+    }:window.L;
+    class AMapMarkerAdapter {
+      constructor(lat,lng,options){
+        this.options=options; this.map=null;
+        const icon=options.icon||{};
+        const anchor=icon.iconAnchor||[14,28];
+        this.marker=new AMap.Marker({position:[lng,lat],content:icon.html||'',offset:new AMap.Pixel(-anchor[0],-anchor[1]),zIndex:options.zIndex||100});
+      }
+      addTo(map){this.map=map;map.nativeMap.add(this.marker);return this;}
+      bindTooltip(text){if(text)this.marker.setTitle(text);return this;}
+      on(event,handler){this.marker.on(event,e=>handler({latlng:{lat:e.lnglat.getLat(),lng:e.lnglat.getLng()},originalEvent:e}));return this;}
+      remove(){if(this.map)this.map.nativeMap.remove(this.marker);return this;}
+    }
+    class AMapPolylineAdapter {
+      constructor(points,options){this.options=options;this.map=null;this.line=new AMap.Polyline({path:toAMapPath(points),strokeColor:options.color||'#e58b55',strokeWeight:options.weight||4,strokeStyle:'dashed',strokeDasharray:[2,10],lineJoin:'round',lineCap:'round'});}
+      addTo(map){this.map=map;map.nativeMap.add(this.line);return this;}
+      setLatLngs(points){this.line.setPath(toAMapPath(points));return this;}
+      getBounds(){return this.line.getBounds();}
+      remove(){if(this.map)this.map.nativeMap.remove(this.line);return this;}
+    }
+    function toAMapPath(points){return (points||[]).map(([lat,lng])=>[lng,lat]);}
+    const map=L.map('map',{zoomControl:true}).setView([27.05,106.9],8);
+    const tileLayer=usingAMap?{setOpacity(){}}:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
+    let route=L.polyline([],{color:'#e58b55',weight:4,dashArray:'2 10',lineCap:'round'}).addTo(map);
+    function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function tripTitle(){return activeTrip.name||'未命名旅行';}
+    function syncTrip(){activeTrip.name=document.getElementById('tripName')?.value||activeTrip.name;activeTrip.startDate=document.getElementById('tripStart')?.value||activeTrip.startDate;activeTrip.endDate=document.getElementById('tripEnd')?.value||activeTrip.endDate;activeTrip.chosen=[...chosen];activeTrip.stickers=JSON.parse(JSON.stringify(stickers));}
+    function persistTrip(){syncTrip();activeTrip.lastModified=new Date().toISOString();const copy={...activeTrip,places:chosen.map(id=>places.find(p=>p.id===id)).filter(Boolean)};const index=trips.findIndex(t=>t.id===activeTrip.id);if(index>=0)trips[index]=copy;else trips.push(copy);localStorage.setItem(TRIP_STORAGE_KEY,JSON.stringify(trips));activeTrip=copy;showToast('旅行已保存');}
+    function renderLibrary(){const sorted=[...trips].sort((a,b)=>new Date(b.lastModified)-new Date(a.lastModified));return `<div class="archive-head"><div><h2>我的旅行</h2><p>保存每一次出发，也保留每一次修改</p></div><button class="new-trip" id="newTrip">＋ 新建旅行</button></div><div class="archive-section">最近编辑</div><div class="trip-list">${sorted.length?sorted.map(t=>`<article class="trip-card"><div class="trip-thumb" aria-hidden="true"></div><div class="trip-info"><div class="trip-name">${esc(t.name)}</div><div class="trip-meta">旅行时间：${esc(t.startDate||'未设置')}${t.endDate&&t.endDate!==t.startDate?' — '+esc(t.endDate):''}<br>${(t.chosen||[]).length} 个地点</div><div class="trip-updated">最近修改：${new Date(t.lastModified).toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).replaceAll('/','.')}</div><div class="trip-actions"><button class="trip-edit" data-open-trip="${esc(t.id)}">编辑旅行</button><button class="trip-delete" data-delete-trip="${esc(t.id)}">删除</button></div></div></article>`).join(''):'<div class="empty-trips">还没有保存的旅行。<br>先创建一条路线，再点击“保存旅行”。</div>'}</div>`;}
+    function showTrips(){syncTrip();screen='trips';document.getElementById('tripLibrary').innerHTML=renderLibrary();editorSections.forEach(s=>s.style.display='none');document.getElementById('tripLibrary').classList.add('show');document.getElementById('libraryButton').textContent='返回编辑';document.getElementById('topStatus').textContent='我的旅行档案';bindLibrary();}
+    function showEditor(){screen='editor';document.getElementById('tripLibrary').classList.remove('show');editorSections.forEach(s=>s.style.display='');document.getElementById('libraryButton').textContent='我的旅行';document.getElementById('topStatus').textContent=tripTitle();render();}
+    function openTrip(id){const found=trips.find(t=>t.id===id);if(!found)return;activeTrip=JSON.parse(JSON.stringify(found));(activeTrip.places||[]).forEach(p=>{if(p&&!places.some(x=>x.id===p.id))places.push(p);});chosen=[...(activeTrip.chosen||[])];stickers=[...(activeTrip.stickers||[])];selectedStopId=null;mode='select';showEditor();}
+    function newTrip(){activeTrip={id:'trip-'+Date.now(),name:'未命名旅行',startDate:today,endDate:today,lastModified:new Date().toISOString(),chosen:[],stickers:[]};chosen=[];stickers=[];selectedStopId=null;mode='select';showEditor();showToast('已新建旅行');}
+    function pin(p,number,selected){ return L.divIcon({className:'',html:`<div class="travel-pin ${selected?'selected':''}"><span>${number||p.icon}</span></div>`,iconSize:[29,29],iconAnchor:[14,28]}); }
+    function renderMap(){ markers.forEach(m=>m.remove()); markers.clear(); places.forEach(p=>{if(mode==='view'&&!chosen.includes(p.id))return; const n=chosen.indexOf(p.id); const m=L.marker([p.lat,p.lng],{icon:pin(p,n>=0?n+1:null,p.id===selectedStopId)}).addTo(map).bindTooltip(p.name); m.on('click',()=>selectStop(p.id)); markers.set(p.id,m); }); route.setLatLngs(chosen.map(id=>{const p=places.find(x=>x.id===id);return [p.lat,p.lng];})); tileLayer.setOpacity(mode==='view'?0:1); document.getElementById('map').classList.toggle('view-map',mode==='view'); if(chosen.length>1) map.fitBounds(route.getBounds(),{padding:mode==='view'?[70,70]:[35,35],maxZoom:mode==='view'?13:10}); renderStickers(); renderIdentity(); renderPlaceNames(); }
+    function renderIdentity(){const box=document.getElementById('viewIdentity');identityMarkers.forEach(m=>m.remove());identityMarkers=[];box.classList.remove('show');renderRouteArt();}
+    function renderRouteArt(){
+      let art=document.getElementById('routeArt');
+      if(!art){art=document.createElement('div');art.id='routeArt';document.getElementById('map').parentElement.appendChild(art);}
+      if(mode!=='view'){art.replaceChildren();return;}
+      const stops=chosen.map(id=>places.find(p=>p.id===id)).filter(Boolean);
+      const points=stops.map((p,i)=>({x:stops.length===1?50:25+(i%2)*50,y:15+i*70/Math.max(1,stops.length-1)}));
+      art.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;width:100%;height:100%"><polyline points="'+points.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="#e58b55" stroke-width=".7" stroke-dasharray="1.4 2" /></svg>';
+      stops.forEach((p,i)=>{
+        const card=document.createElement('div');card.className='art-stop'+(selectedStopId===p.id?' active':'');card.style.left=points[i].x+'%';card.style.top=points[i].y+'%';
+        const label=document.createElement('button');label.style.cssText='border:0;background:transparent;color:inherit;padding:0';label.textContent=(i+1)+'. '+p.name;label.onclick=()=>selectStop(p.id);card.appendChild(label);
+        if(showIdentityStickers){const meta=document.createElement('small');meta.textContent=[p.region,p.country].filter(Boolean).join(' · ');card.appendChild(meta);}
+        const emojis=document.createElement('div');emojis.className='art-emojis';stickers.forEach((s,index)=>{if(s.placeId!==p.id)return;const b=document.createElement('button');b.textContent=s.emoji;b.onclick=()=>{stickers.splice(index,1);render();};emojis.appendChild(b);});card.appendChild(emojis);art.appendChild(card);
+      });
+    }
+    function renderPlaceNames(){placeNameMarkers.forEach(m=>m.remove());placeNameMarkers=[];if(mode!=='view')return;chosen.forEach((id,index)=>{const p=places.find(x=>x.id===id);const region=p.region||p.type||'地区未识别';const country=p.country||'';const location=[region,country].filter(Boolean).join(' · ')||'国家未识别';const meta=showIdentityStickers?`<small>${location}</small>`:'';const marker=L.marker([p.lat-0.018-(index%2)*.006,p.lng-0.025],{icon:L.divIcon({className:'place-name-sticker',html:`<strong>${p.name}</strong>${meta}`,iconSize:[150,45],iconAnchor:[150,22]})}).addTo(map);placeNameMarkers.push(marker);});}
+    function renderStickers(){stickerMarkers.forEach(m=>m.remove());stickerMarkers=[];const offsets={};stickers.forEach((s,index)=>{const p=places.find(x=>x.id===s.placeId);if(!p||mode!=='view')return;const slot=offsets[s.placeId]||0;offsets[s.placeId]=slot+1;const angle=slot*55*Math.PI/180;const lat=p.lat+Math.sin(angle)*.012;const lng=p.lng+Math.cos(angle)*.018;const marker=L.marker([lat,lng],{icon:L.divIcon({className:'map-sticker',html:s.emoji,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map).bindTooltip('点击摘下这张贴纸');marker.on('click',()=>{stickers.splice(index,1);render();showToast('贴纸已从路线图摘下');});stickerMarkers.push(marker);});}
+    function render(){if(screen==='trips'){showTrips();return;}document.getElementById('app').classList.toggle('view-mode',mode==='view');document.getElementById('topStatus').textContent=tripTitle(); if(mode==='view'){renderRouteArt();}else{renderRouteArt();renderMap();} document.getElementById('mapNote').textContent=mode==='select'?'点击地图标记，按顺序加入路线':'点击路线节点，再选择下方贴纸'; document.getElementById('hint').textContent=usingAMap?(mode==='select'?'搜索或直接点击地图任意位置加入路线；再次点击标记可移除。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'):(mode==='select'?'当前为免 Key 的公开演示地图；搜索、路线和贴纸仍可使用。':'未选择的地点已经移除。先点一个路线节点，再从下方添加贴纸；点击贴纸即可摘下。'); panel.innerHTML=mode==='select'?selectPanel():viewPanel(); bindPanel(); }
+    let pendingSticker=null, stickers=[];
+    function selectStop(id){if(mode==='view'){selectedStopId=id;render();return;}togglePlace(id);}
+    function togglePlace(id){if(mode!=='select')return; chosen=chosen.includes(id)?chosen.filter(x=>x!==id):[...chosen,id]; render();}
+    function selectPanel(){return `<div class="trip-fields"><label class="full">旅行名称<input id="tripName" value="${esc(activeTrip.name)}" placeholder="例如：东京旅行" /></label><label>旅行开始<input id="tripStart" type="date" value="${esc(activeTrip.startDate)}" /></label><label>旅行结束<input id="tripEnd" type="date" value="${esc(activeTrip.endDate)}" /></label></div><div class="section-row"><div class="section-title">想去哪里？</div><div class="counter">已选择 ${chosen.length} 个地点</div></div><div class="stops">${places.filter(p=>chosen.includes(p.id)).map(p=>`<button class="stop-card active" data-id="${p.id}"><span class="num">NO.${chosen.indexOf(p.id)+1}</span><strong>${p.name}</strong><small>${p.type}</small></button>`).join('')||'<div style="color:var(--muted);font-size:12px;padding:10px 0">还没有选择地点</div>'}</div><button class="primary" ${chosen.length<2?'disabled':''} id="confirm">确认这条路线</button>`;}
+    const stickerSets={人物:['🧑','👩','👨','🧒','👵','👴','🧑🏻','🧑🏽','🧑🏿','👩🏻‍🤝‍👨🏿','👩‍❤️‍👩','👨‍❤️‍👨','👩‍❤️‍👨','🔄♀️♂️','🧑‍🤝‍🧑','👨‍👩‍👧‍👦','👭','👬','🧳','🚶'],情绪:['😀','🥰','😎','🤩','😌','🥹','😴','🤗','💛','✨','🎉','😭'],地区:['🇨🇳','🇫🇷','🇯🇵','🇺🇸','🇮🇩','🇮🇹','🇪🇸','🇹🇭','🏔️','🌊','🌅','🌳'],场所:['✈️','🛫','🏨','🏠','☕','🍜','🍻','👕','🛍️','⛽','🚉','🚕','🎫','📸']}; let stickerTab='人物';
+    function viewPanel(){const names=chosen.map(id=>places.find(p=>p.id===id).name);const set=stickerSets[stickerTab];const current=selectedStopId?places.find(p=>p.id===selectedStopId):null;return `<div class="section-row"><div class="section-title">我的旅行足迹</div><div class="counter">${chosen.length} 个停留 · ${stickers.length} 张贴纸</div></div><p class="observe-copy">未选择的地点已移除。省份和国家会自动生成地区贴纸，你也可以隐藏或重新显示它。</p><div class="summary"><div><strong>${current?current.name:(names[0]||'请先选择地点')}</strong><span>${current?' · 已选贴纸位置':' → '+(names[names.length-1]||'—')}</span></div><span>宣纸壁纸</span></div><div class="sticker-title">${current?'为「'+current.name+'」添加贴纸':'先点击地图上的一个地点'}</div><div class="sticker-tabs">${Object.keys(stickerSets).map(k=>`<button class="${k===stickerTab?'active':''}" data-sticker-tab="${k}">${k}</button>`).join('')}</div><div class="sticker-grid">${set.map(e=>`<button class="sticker" data-emoji="${e}">${e}</button>`).join('')}</div><div class="custom-emoji"><input id="customEmoji" maxlength="8" placeholder="输入或粘贴自己的 Emoji" /><button id="addCustom">添加</button></div><div class="sticker-tip">一个地点可以无限添加贴纸；点击地图上的贴纸即可摘下。</div><button class="secondary" id="toggleIdentity">${showIdentityStickers?'隐藏':'显示'}自动地区贴纸</button><button class="primary" id="saveTrip">保存旅行</button><button class="primary" id="share">生成旅行卡片</button><button class="secondary" id="back">继续编辑路线</button>`;}
+    function addSticker(emoji){if(!selectedStopId){showToast('请先点击路线上的一个地点');return;}stickers.push({emoji,placeId:selectedStopId});render();showToast('贴纸已添加');}
+    function bindPanel(){const c=document.getElementById('confirm');if(c)c.onclick=()=>{mode='view';document.querySelectorAll('.modebar button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));render();showToast('路线已确认，地区贴纸已自动加到地点旁');};const save=document.getElementById('saveTrip');if(save)save.onclick=()=>persistTrip();const b=document.getElementById('back');if(b)b.onclick=()=>{mode='select';selectedStopId=null;document.querySelectorAll('.modebar button').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));render();};const s=document.getElementById('share');if(s)s.onclick=()=>showToast('旅行卡片功能预留中');const toggle=document.getElementById('toggleIdentity');if(toggle)toggle.onclick=()=>{showIdentityStickers=!showIdentityStickers;render();};const hide=document.getElementById('hideIdentity');if(hide)hide.onclick=()=>{showIdentityStickers=false;render();};panel.querySelectorAll('[data-sticker-tab]').forEach(x=>x.onclick=()=>{stickerTab=x.dataset.stickerTab;render();});panel.querySelectorAll('[data-emoji]').forEach(x=>x.onclick=()=>addSticker(x.dataset.emoji));const custom=document.getElementById('customEmoji'),add=document.getElementById('addCustom');if(add)add.onclick=()=>{if(custom.value.trim())addSticker(custom.value.trim());};}
+    function bindLibrary(){document.getElementById('newTrip').onclick=()=>newTrip();document.querySelectorAll('[data-open-trip]').forEach(b=>b.onclick=()=>openTrip(b.dataset.openTrip));document.querySelectorAll('[data-delete-trip]').forEach(b=>b.onclick=()=>{const t=trips.find(x=>x.id===b.dataset.deleteTrip);if(t&&confirm('确定删除“'+t.name+'”吗？此操作不可恢复。')){trips=trips.filter(x=>x.id!==t.id);localStorage.setItem(TRIP_STORAGE_KEY,JSON.stringify(trips));showTrips();}});}
+    const searchInput=document.getElementById('searchInput'), searchResults=document.getElementById('searchResults'); let searchToken=0, searchTimer;
+    // OSM 类型 → 中文标签（搜索结果里显示"机场/餐厅/景点"等）
+    const TYPE_LABELS={aerodrome:'机场',airport:'机场',terminal:'航站楼',restaurant:'餐厅',fast_food:'快餐',cafe:'咖啡馆',bar:'酒吧',pub:'酒吧',hotel:'酒店',hostel:'青旅',guest_house:'民宿',attraction:'景点',museum:'博物馆',gallery:'美术馆',artwork:'景观',viewpoint:'观景台',castle:'城堡',theme_park:'游乐园',zoo:'动物园',aquarium:'水族馆',beach:'海滩',park:'公园',garden:'园林',temple:'寺庙',shrine:'神社',church:'教堂',mosque:'清真寺',station:'车站',halt:'火车站',subway:'地铁站',bus_station:'汽车站',bus_stop:'公交站',ferry:'渡口',fuel:'加油站',supermarket:'超市',convenience:'便利店',bakery:'面包店',mall:'商场',clothes:'服饰店',shop:'商店',cinema:'影院',theatre:'剧院',stadium:'体育场馆',sports_centre:'运动中心',hospital:'医院',pharmacy:'药店',bank:'银行',atm:'ATM',university:'大学',college:'学院',school:'学校',library:'图书馆',city:'城市',town:'城镇',village:'村庄',suburb:'城区',quarter:'街区',neighbourhood:'街区',island:'岛屿',peak:'山峰',mountain_range:'山脉',lake:'湖泊',river:'河流',forest:'森林',nature_reserve:'自然保护区',memorial:'纪念地',monument:'纪念碑',ruins:'遗迹',lighthouse:'灯塔',bridge:'桥梁',tower:'塔',waterfall:'瀑布',camp_site:'营地',marketplace:'市集',farm:'农场',commercial:'商业',office:'办公楼',house:'住宅',apartments:'住宅',building:'建筑',parking:'停车场',toll_booth:'收费站'};
+    function typeLabel(v){ if(!v||v==='yes') return ''; return TYPE_LABELS[v]||v; }
+    // 带超时的 fetch，避免某个数据源被墙时卡死搜索
+    function fetchJSON(url,ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms); return fetch(url,{signal:c.signal}).then(r=>r.json()).finally(()=>clearTimeout(t)); }
+    // 主数据源：Photon（全球 POI，中文可搜中国地点；海外地点用英文/当地语言名搜索）
+    async function photonSearch(q){
+      const d=await fetchJSON('https://photon.komoot.io/api/?limit=20&lang=zh&q='+encodeURIComponent(q),8000);
+      return (d.features||[]).map((f,i)=>{ const c=f.properties||{}; const co=(f.geometry&&f.geometry.coordinates)||[]; if(co.length!==2) return null; const name=c.name||c.street||c.city||c.county; if(!name) return null; return {name,region:[c.state,c.county,c.city].filter(Boolean).join(' · '),country:c.country||'',countryCode:c.countrycode||c.country_code||'',type:typeLabel(c.osm_value),searchText:Object.values(c).join(' '),lat:co[1],lng:co[0],key:'p-'+(c.osm_id||i)}; }).filter(Boolean);
+    }
+    // 备用数据源：Nominatim（部分网络下更稳，两路并行自动合并去重）
+    async function nominatimSearch(q){
+      const d=await fetchJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&addressdetails=1&accept-language=zh-CN&q='+encodeURIComponent(q),8000);
+      return (Array.isArray(d)?d:[]).map((p,i)=>{ const a=p.address||{}; const name=p.namedetails?.name||a.amenity||a.tourism||a.shop||a.building||a.city||a.town||a.village||p.name||(p.display_name||'').split(',')[0]; if(!name) return null; return {name,region:[a.province||a.state,a.county,a.city].filter(Boolean).join(' · '),country:a.country||'',countryCode:a.country_code||'',type:typeLabel(p.type||p.category),searchText:p.display_name||'',lat:Number(p.lat),lng:Number(p.lon),key:'n-'+(p.place_id||i)}; }).filter(Boolean);
+    }
+    function bindResults(){ searchResults.querySelectorAll('.result').forEach(r=>r.onclick=()=>{ const id=r.dataset.id; togglePlace(id); searchResults.classList.remove('show'); searchInput.value=''; const p=places.find(x=>x.id===id); map.setView([p.lat,p.lng],12); }); }
+    function normalizeLocation(item){const raw=[item.name,item.region,item.country,item.searchText,item.countryCode].filter(Boolean).join(' ');if(/台湾|台北|台中|高雄|台南|Taiwan|Taipei|Taichung|Kaohsiung/i.test(raw)||String(item.countryCode).toLowerCase()==='tw')return {region:'中国台湾省',country:''};return {region:item.region||'',country:item.country||''};}
+    function addSearchPlace(item){ const id='remote-'+item.key; let p=places.find(x=>x.id===id); const loc=normalizeLocation(item); if(!p){ p={id,name:item.name,type:item.type||'全球地点',region:loc.region,country:loc.country,icon:'•',lat:Number(item.lat),lng:Number(item.lng),searchText:item.searchText||''}; places.push(p); } else {p.region=loc.region;p.country=loc.country;} return p; }
+    function resultButton(p){ const meta=[p.type,p.region,p.country].filter(Boolean).join(' · '); return '<button class="result" data-id="'+p.id+'">'+p.name+'<small>'+(meta||'全球地点')+'</small></button>'; }
+    function searchScore(p,q){const query=q.toLowerCase();const name=(p.name||'').toLowerCase();const text=[p.name,p.type,p.region,p.country,p.searchText].filter(Boolean).join(' ').toLowerCase();let score=0;if(name===query)score+=200;if(name.startsWith(query))score+=100;if(name.includes(query))score+=65;query.split(/\s+/).filter(Boolean).forEach(word=>{if(name.includes(word))score+=35;if(text.includes(word))score+=10;});return score;}
+    function rankedResults(list,q){return [...new Map(list.map(p=>[`${p.name}-${Number(p.lat).toFixed(4)}-${Number(p.lng).toFixed(4)}`,p])).values()].sort((a,b)=>searchScore(b,q)-searchScore(a,q));}
+    searchInput.addEventListener('input',()=>{ clearTimeout(searchTimer); const q=searchInput.value.trim(); if(!q){ searchResults.classList.remove('show'); return; } const token=++searchToken; searchTimer=setTimeout(async()=>{ const local=places.filter(p=>(p.name+' '+p.type+' '+p.region+' '+p.country).toLowerCase().includes(q.toLowerCase())); searchResults.innerHTML=local.map(resultButton).join('')||'<div class="result-hint">正在搜索全球地点、公共场所和商户…</div>'; searchResults.classList.add('show'); bindResults(); const results=await Promise.allSettled([photonSearch(q),nominatimSearch(q)]); if(token!==searchToken) return; const found=[]; results.forEach(r=>{ if(r.status==='fulfilled') found.push(...r.value); }); const remote=found.map(addSearchPlace); const ranked=rankedResults([...local,...remote],q); searchResults.innerHTML=ranked.map(resultButton).join('')||('<div class="result-hint">没有找到「'+q+'」。<br>可以尝试完整店名、景点名，或使用当地语言搜索。</div>'); searchResults.classList.add('show'); bindResults(); },350); });
+    // 点击地图任意位置 → 反查地名并加入路线（覆盖世界任何角落，包括没有名字的野外）
+    let mapClickTimer=null;
+    async function addCustomPlace(latlng){
+      let name='自定义地点', region='', country='', t='';
+      try{ const d=await fetchJSON('https://photon.komoot.io/reverse?lat='+latlng.lat+'&lon='+latlng.lng,6000); const c=(d.features&&d.features[0]&&d.features[0].properties)||{}; name=c.name||c.street||c.city||c.county||c.state||name; region=[c.city,c.county,c.state].filter(Boolean).join(' · '); country=c.country||''; t=typeLabel(c.osm_value); }catch(_){}
+      const p={id:'custom-'+Date.now(),name,type:t?(t+' · 自定义'):'自定义地点',region,country,icon:'📍',lat:latlng.lat,lng:latlng.lng};
+      places.push(p); chosen.push(p.id); render(); showToast('已加入「'+p.name+'」'); map.setView([latlng.lat,latlng.lng],Math.max(map.getZoom(),10));
+    }
+    map.on('click',e=>{ if(mode!=='select') return; clearTimeout(mapClickTimer); const ll=e.latlng; mapClickTimer=setTimeout(()=>addCustomPlace(ll),260); });
+    map.on('dblclick',()=>clearTimeout(mapClickTimer));
+    document.querySelectorAll('.modebar button').forEach(b=>b.onclick=()=>{if(b.dataset.mode==='view'&&chosen.length<2){showToast('请先选择至少两个地点');return;}mode=b.dataset.mode;document.querySelectorAll('.modebar button').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));render();});
+    document.getElementById('libraryButton').onclick=()=>screen==='trips'?showEditor():showTrips();
+    render();
+    });
+  </script>
+</body>
+</html>
